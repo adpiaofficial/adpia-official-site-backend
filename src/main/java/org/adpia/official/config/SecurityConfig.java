@@ -68,13 +68,13 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfig() {
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOrigins(List.of("http://localhost:5173","http://210.114.19.106:8080",
-			"http://210.114.19.106",
-			"https://adpia.or.kr",
-			"http://adpia.or.kr"));
+
+		// ✅ 일단 전체 허용으로 테스트 (원인 확인용)
+		config.setAllowedOriginPatterns(List.of("*"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);
+		config.setMaxAge(3600L);
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", config);
