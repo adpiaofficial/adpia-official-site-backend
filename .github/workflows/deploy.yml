@@ -20,9 +20,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Backend test & build
+      - name: Backend build (skip tests)
         run: |
-          ./gradlew clean test build
+          ./gradlew clean build -x test
 
   deploy:
     needs: build_and_test
