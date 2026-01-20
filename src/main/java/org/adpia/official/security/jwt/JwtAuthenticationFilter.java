@@ -25,6 +25,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final TokenBlacklistService tokenBlacklistService;
 
 	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+		String path = request.getServletPath();
+		return path.startsWith("/api/email/") ||
+			path.startsWith("/api/members/signup") ||
+			path.startsWith("/api/members/login") ||
+			path.equals("/health");
+	}
+
+	@Override
 	protected void doFilterInternal(
 		HttpServletRequest request,
 		HttpServletResponse response,
@@ -37,14 +46,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			&& jwtTokenProvider.validateToken(token)
 			&& !tokenBlacklistService.isBlacklisted(token)) {
 
-			String email = jwtTokenProvider.getEmailFromToken(token);
-			UserDetails userDetails = memberDetailsService.loadUserByUsername(email);
+			try {
+				String email = jwtTokenProvider.getEmailFromToken(token);
+				UserDetails userDetails = memberDetailsService.loadUserByUsername(email);
 
-			UsernamePasswordAuthenticationToken authentication =
-				new UsernamePasswordAuthenticationToken(
-					userDetails, null, userDetails.getAuthorities());
+				UsernamePasswordAuthenticationToken authentication =
+					new UsernamePasswordAuthenticationToken(
+						userDetails, null, userDetails.getAuthorities());
 
-			SecurityContextHolder.getContext().setAuthentication(authentication);
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+			} catch (Exception e) {
+				SecurityContextHolder.clearContext();
+			}
 		}
 
 		filterChain.doFilter(request, response);
