@@ -1,0 +1,43 @@
+name: Deploy to Adpia Server
+
+on:
+  push:
+    branches:
+      - main          # main에 push될 때 자동 배포
+  workflow_dispatch:
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Backend test & build
+        run: |
+          ./gradlew clean test build
+
+  deploy:
+    needs: build_and_test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            echo "[CI] Start deploy on server..."
+            cd /srv/adpia
+            ./deploy.sh
+            echo "[CI] Deploy finished."
