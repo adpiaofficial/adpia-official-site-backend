@@ -2,11 +2,13 @@ package org.adpia.official.domain.admin.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.adpia.official.dto.member.MemberResponse;
+import org.adpia.official.dto.member.UpdateActiveRequest;
 import org.adpia.official.dto.member.UpdateGradeRequest;
 import org.adpia.official.domain.admin.service.AdminMemberService;
 import org.adpia.official.dto.member.UpdateRoleRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 	import java.util.List;
@@ -32,6 +34,16 @@ public class AdminMemberController {
 		@RequestBody UpdateGradeRequest request
 	) {
 		MemberResponse updated = adminMemberService.updateGrade(id, request.getGrade());
+		return ResponseEntity.ok(updated);
+	}
+
+	@PatchMapping("/{id}/active")
+	@PreAuthorize("hasRole('SUPER_ADMIN')")
+	public ResponseEntity<MemberResponse> updateMemberActive(
+		@PathVariable Long id,
+		@RequestBody UpdateActiveRequest request
+	) {
+		MemberResponse updated = adminMemberService.updateActive(id, request.getActive());
 		return ResponseEntity.ok(updated);
 	}
 

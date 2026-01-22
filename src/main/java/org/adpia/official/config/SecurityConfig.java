@@ -1,6 +1,8 @@
 package org.adpia.official.config;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.adpia.official.security.MemberDetailsService;
 import org.adpia.official.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +26,7 @@ import java.util.List;
 @Configuration
 @EnableMethodSecurity
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
 
 	private final MemberDetailsService memberDetailsService;

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -69,4 +70,22 @@ public class AdminMemberService {
 
 		return MemberResponse.from(member);
 	}
+
+	@Transactional
+	public MemberResponse updateActive(Long targetMemberId, Boolean active) {
+		if (active == null) {
+			throw new IllegalArgumentException("active 값이 필요합니다.");
+		}
+
+		Member target = memberRepository.findById(targetMemberId)
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+		if (target.getRole() == MemberRole.ROLE_SUPER_ADMIN && !active) {
+			throw new IllegalStateException("마스터 계정은 비활성화할 수 없습니다.");
+		}
+
+		target.setActive(active);
+		return MemberResponse.from(target);
+	}
+
 }

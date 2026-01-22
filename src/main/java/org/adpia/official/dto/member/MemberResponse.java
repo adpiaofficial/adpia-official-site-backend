@@ -15,6 +15,7 @@ public class MemberResponse {
 	private int generation;
 	private String grade;
 	private String role;
+	private Boolean active;
 
 	public static MemberResponse from(Member member) {
 		return MemberResponse.builder()
@@ -26,6 +27,7 @@ public class MemberResponse {
 			.generation(member.getGeneration())
 			.grade(member.getGrade())
 			.role(member.getRole().name())
+			.active(member.getActive())
 			.build();
 	}
 }
