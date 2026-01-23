@@ -80,8 +80,8 @@ public class AdminMemberService {
 		Member target = memberRepository.findById(targetMemberId)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-		if (target.getRole() == MemberRole.ROLE_SUPER_ADMIN && !active) {
-			throw new IllegalStateException("마스터 계정은 비활성화할 수 없습니다.");
+		if (target.getRole() == MemberRole.ROLE_SUPER_ADMIN) {
+			throw new IllegalStateException("마스터 계정은 활성/비활성 상태를 변경할 수 없습니다.");
 		}
 
 		target.setActive(active);

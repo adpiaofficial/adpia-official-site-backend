@@ -7,6 +7,7 @@ import org.adpia.official.security.MemberDetailsService;
 import org.adpia.official.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -40,10 +41,26 @@ public class SecurityConfig {
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/api/email/**", "/api/members/signup", "/api/members/login", "/health").permitAll()
+
+
+				.requestMatchers(HttpMethod.GET, "/api/recruit/**").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/recruit/QA/**").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/recruit/NOTICE/**").authenticated()
+
+				.requestMatchers(HttpMethod.PATCH,  "/api/recruit/*/posts/**").authenticated()
+				.requestMatchers(HttpMethod.DELETE, "/api/recruit/*/posts/**").authenticated()
+
+				.requestMatchers(HttpMethod.PATCH,  "/api/recruit/posts/**").authenticated()
+				.requestMatchers(HttpMethod.DELETE, "/api/recruit/posts/**").authenticated()
+
+				.requestMatchers(HttpMethod.POST, "/api/files/presign").permitAll()
+
+
 				.requestMatchers("/api/posts/category/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
 				.anyRequest().authenticated()
 			)
+
 			.authenticationProvider(authenticationProvider())
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -71,8 +88,6 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfig() {
 		CorsConfiguration config = new CorsConfiguration();
-
-		// ✅ 일단 전체 허용으로 테스트 (원인 확인용)
 		config.setAllowedOriginPatterns(List.of("*"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
