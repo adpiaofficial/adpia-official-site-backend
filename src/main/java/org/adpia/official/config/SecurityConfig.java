@@ -42,19 +42,22 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/api/email/**", "/api/members/signup", "/api/members/login", "/health").permitAll()
 
-
 				.requestMatchers(HttpMethod.GET, "/api/recruit/**").permitAll()
+
 				.requestMatchers(HttpMethod.POST, "/api/recruit/QA/**").permitAll()
+
 				.requestMatchers(HttpMethod.POST, "/api/recruit/NOTICE/**").authenticated()
 
-				.requestMatchers(HttpMethod.PATCH,  "/api/recruit/*/posts/**").authenticated()
-				.requestMatchers(HttpMethod.DELETE, "/api/recruit/*/posts/**").authenticated()
+				.requestMatchers(HttpMethod.PATCH, "/api/recruit/posts/**").permitAll()
+				.requestMatchers(HttpMethod.DELETE, "/api/recruit/posts/**").permitAll()
 
-				.requestMatchers(HttpMethod.PATCH,  "/api/recruit/posts/**").authenticated()
-				.requestMatchers(HttpMethod.DELETE, "/api/recruit/posts/**").authenticated()
+				.requestMatchers(HttpMethod.PATCH, "/api/recruit/posts/*/pin").authenticated()
+
+				.requestMatchers(HttpMethod.GET, "/api/recruit/posts/*/comments").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/recruit/posts/*/comments").permitAll()
+				.requestMatchers(HttpMethod.DELETE, "/api/recruit/comments/*").permitAll()
 
 				.requestMatchers(HttpMethod.POST, "/api/files/presign").permitAll()
-
 
 				.requestMatchers("/api/posts/category/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")

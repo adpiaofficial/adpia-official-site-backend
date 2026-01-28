@@ -20,6 +20,7 @@ public class RecruitPostResponse {
 	private String authorName;
 
 	private boolean secret;
+	private boolean locked;
 	private boolean pinned;
 	private boolean commentEnabled;
 	private boolean likeEnabled;
@@ -31,6 +32,10 @@ public class RecruitPostResponse {
 	private List<RecruitBlockResponse> blocks;
 
 	public static RecruitPostResponse from(RecruitPost post, List<RecruitBlockResponse> blocks) {
+		return from(post, blocks, false);
+	}
+
+	public static RecruitPostResponse from(RecruitPost post, List<RecruitBlockResponse> blocks, boolean locked) {
 		return RecruitPostResponse.builder()
 			.id(post.getId())
 			.boardCode(post.getBoardCode())
@@ -39,6 +44,7 @@ public class RecruitPostResponse {
 			.authorType(post.getAuthorType().name())
 			.authorName(post.getAuthorName())
 			.secret(post.isSecret())
+			.locked(locked)
 			.pinned(post.isPinned())
 			.commentEnabled(post.isCommentEnabled())
 			.likeEnabled(post.isLikeEnabled())
