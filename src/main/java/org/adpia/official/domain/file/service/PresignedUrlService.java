@@ -2,16 +2,17 @@ package org.adpia.official.domain.file.service;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
-import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -48,8 +49,38 @@ public class PresignedUrlService {
 		PresignedPutObjectRequest presigned = presigner.presignPutObject(presignRequest);
 
 		String fileUrl = buildPublicUrl(key);
-
 		return new PresignResult(presigned.url().toString(), key, fileUrl);
+	}
+
+	public PresignGetResult createGetUrl(String key, String contentTypeOrNull, String filenameOrNull) {
+		if (key == null || key.isBlank()) {
+			throw new IllegalArgumentException("key가 필요합니다.");
+		}
+
+		String contentType = (contentTypeOrNull == null || contentTypeOrNull.isBlank())
+			? "application/octet-stream"
+			: contentTypeOrNull.trim();
+
+		String filename = (filenameOrNull == null || filenameOrNull.isBlank())
+			? "download"
+			: filenameOrNull.trim();
+
+		String safeFilename = filename.replace("\"", "");
+
+		GetObjectRequest getReq = GetObjectRequest.builder()
+			.bucket(bucket)
+			.key(key)
+			.responseContentDisposition("attachment; filename=\"" + safeFilename + "\"")
+			.responseContentType(contentType)
+			.build();
+
+		GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()
+			.signatureDuration(Duration.ofMinutes(10))
+			.getObjectRequest(getReq)
+			.build();
+
+		PresignedGetObjectRequest presigned = presigner.presignGetObject(presignReq);
+		return new PresignGetResult(presigned.url().toString());
 	}
 
 	private String buildKey(String boardCode, Long postId, String contentType, String ext) {
@@ -58,7 +89,7 @@ public class PresignedUrlService {
 				: contentType != null && contentType.startsWith("image") ? "images"
 				: "files";
 
-		String date = LocalDate.now().toString().replace("-", ""); // yyyyMMdd
+		String date = LocalDate.now().toString().replace("-", "");
 		String postPart = (postId == null) ? "temp" : String.valueOf(postId);
 
 		return "recruit/" + boardCode + "/" + date + "/" + postPart + "/" + typeFolder + "/" + UUID.randomUUID() + ext;
@@ -66,7 +97,9 @@ public class PresignedUrlService {
 
 	private String buildPublicUrl(String key) {
 		if (publicBaseUrl != null && !publicBaseUrl.isBlank()) {
-			String base = publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
+			String base = publicBaseUrl.endsWith("/")
+				? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
+				: publicBaseUrl;
 			return base + "/" + key;
 		}
 		return "https://" + bucket + ".s3.amazonaws.com/" + key;
@@ -83,11 +116,23 @@ public class PresignedUrlService {
 			throw new IllegalArgumentException("contentType이 필요합니다.");
 		}
 
-		if (contentType.startsWith("image/")) return;
-		if (contentType.startsWith("video/")) return;
-		if (contentType.equals("application/pdf")) return;
-		if (contentType.equals("application/zip")) return;
-		if (contentType.equals("text/plain")) return;
+		String ct = contentType.trim().toLowerCase();
+
+		if (ct.startsWith("image/")) return;
+		if (ct.startsWith("video/")) return;
+
+		if (ct.equals("application/pdf")) return;
+		if (ct.equals("application/zip")) return;
+		if (ct.equals("text/plain")) return;
+
+		if (ct.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) return;
+		if (ct.equals("application/msword")) return;
+		if (ct.equals("application/vnd.openxmlformats-officedocument.presentationml.presentation")) return;
+		if (ct.equals("application/vnd.ms-powerpoint")) return;
+		if (ct.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) return;
+		if (ct.equals("application/vnd.ms-excel")) return;
+
+		if (ct.equals("application/octet-stream")) return;
 
 		throw new IllegalArgumentException("허용되지 않은 contentType: " + contentType);
 	}
@@ -104,26 +149,33 @@ public class PresignedUrlService {
 
 		if (contentType == null) return "";
 
-		// image
-		if ("image/png".equalsIgnoreCase(contentType)) return ".png";
-		if ("image/jpeg".equalsIgnoreCase(contentType)) return ".jpg";
-		if ("image/jpg".equalsIgnoreCase(contentType)) return ".jpg";
-		if ("image/gif".equalsIgnoreCase(contentType)) return ".gif";
-		if ("image/webp".equalsIgnoreCase(contentType)) return ".webp";
-		if ("image/svg+xml".equalsIgnoreCase(contentType)) return ".svg";
+		String ct = contentType.trim().toLowerCase();
 
-		// video
-		if ("video/mp4".equalsIgnoreCase(contentType)) return ".mp4";
-		if ("video/webm".equalsIgnoreCase(contentType)) return ".webm";
-		if ("video/quicktime".equalsIgnoreCase(contentType)) return ".mov";
+		if (ct.equals("image/png")) return ".png";
+		if (ct.equals("image/jpeg")) return ".jpg";
+		if (ct.equals("image/jpg")) return ".jpg";
+		if (ct.equals("image/gif")) return ".gif";
+		if (ct.equals("image/webp")) return ".webp";
+		if (ct.equals("image/svg+xml")) return ".svg";
 
-		// docs
-		if ("application/pdf".equalsIgnoreCase(contentType)) return ".pdf";
-		if ("application/zip".equalsIgnoreCase(contentType)) return ".zip";
-		if ("text/plain".equalsIgnoreCase(contentType)) return ".txt";
+		if (ct.equals("video/mp4")) return ".mp4";
+		if (ct.equals("video/webm")) return ".webm";
+		if (ct.equals("video/quicktime")) return ".mov";
+
+		if (ct.equals("application/pdf")) return ".pdf";
+		if (ct.equals("application/zip")) return ".zip";
+		if (ct.equals("text/plain")) return ".txt";
+
+		if (ct.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) return ".docx";
+		if (ct.equals("application/msword")) return ".doc";
+		if (ct.equals("application/vnd.openxmlformats-officedocument.presentationml.presentation")) return ".pptx";
+		if (ct.equals("application/vnd.ms-powerpoint")) return ".ppt";
+		if (ct.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) return ".xlsx";
+		if (ct.equals("application/vnd.ms-excel")) return ".xls";
 
 		return "";
 	}
 
 	public record PresignResult(String putUrl, String key, String fileUrl) {}
+	public record PresignGetResult(String url) {}
 }

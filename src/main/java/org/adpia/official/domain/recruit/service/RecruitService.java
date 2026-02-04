@@ -4,12 +4,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
+import lombok.RequiredArgsConstructor;
+import org.adpia.official.domain.member.Member;
 import org.adpia.official.domain.member.MemberRole;
-import org.adpia.official.domain.recruit.RecruitAuthorType;
-import org.adpia.official.domain.recruit.RecruitBoardCode;
-import org.adpia.official.domain.recruit.RecruitPost;
-import org.adpia.official.domain.recruit.RecruitPostBlock;
-import org.adpia.official.domain.recruit.RecruitBlockType;
+import org.adpia.official.domain.member.repository.MemberRepository;
+import org.adpia.official.domain.recruit.*;
 import org.adpia.official.domain.recruit.repository.RecruitPostBlockRepository;
 import org.adpia.official.domain.recruit.repository.RecruitPostRepository;
 import org.adpia.official.dto.recruit.RecruitBlockRequest;
@@ -22,8 +21,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.RequiredArgsConstructor;
-
 @Service
 @RequiredArgsConstructor
 public class RecruitService {
@@ -31,44 +28,27 @@ public class RecruitService {
 	private final RecruitPostRepository postRepository;
 	private final RecruitPostBlockRepository blockRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final MemberRepository memberRepository;
 
 	@Transactional
-	public RecruitPostResponse create(RecruitBoardCode boardCode,
-		RecruitPostUpsertRequest req,
-		Actor actor
-	) {
+	public RecruitPostResponse createDraft(RecruitBoardCode boardCode, String title, Actor actor) {
 		validateCreatePermission(boardCode, actor);
 
 		boolean isGuest = actor.isGuest();
 
 		RecruitPost post = RecruitPost.builder()
 			.boardCode(boardCode)
-			.title(req.getTitle())
+			.status(RecruitPostStatus.DRAFT)
+			.title((title == null || title.isBlank()) ? "제목 없음" : title.trim())
 			.authorType(isGuest ? RecruitAuthorType.GUEST : RecruitAuthorType.MEMBER)
 			.authorMemberId(isGuest ? null : actor.memberId())
-			.authorName(isGuest ? requireGuestName(req.getAuthorName()) : actor.displayName())
-			.secret(Boolean.TRUE.equals(req.getSecret()))
+			.authorName(isGuest ? "GUEST" : actor.displayName())
+			.secret(false)
 			.commentEnabled(boardCode == RecruitBoardCode.QA)
 			.likeEnabled(true)
 			.pinned(false)
 			.viewCount(0)
 			.build();
-
-
-		if (post.isSecret()) {
-			if (isGuest) {
-				String rawPw = requirePassword(req.getPassword());
-				post.setSecretPasswordHash(passwordEncoder.encode(rawPw));
-			} else {
-				if (req.getPassword()!= null && !req.getPassword().isBlank()){
-					post.setSecretPasswordHash(passwordEncoder.encode(req.getPassword()));
-				}else {
-					post.setSecretPasswordHash(null);
-				}
-			}
-		} else {
-			post.setSecretPasswordHash(null);
-		}
 
 		if (boardCode == RecruitBoardCode.NOTICE) {
 			post.setCommentEnabled(false);
@@ -76,18 +56,70 @@ public class RecruitService {
 
 		RecruitPost saved = postRepository.save(post);
 
-		List<RecruitBlockRequest> blocks = req.getBlocks() == null ? List.of() : req.getBlocks();
-		saveBlocks(saved.getId(), blocks);
-
-		return get(saved.getId(), actor, req.getPassword());
+		String displayAuthor = resolveDisplayAuthorName(saved);
+		return RecruitPostResponse.from(saved, List.of(), false, displayAuthor);
 	}
+
+
+	@Transactional
+	public RecruitPostResponse publish(Long postId, RecruitPostUpsertRequest req, Actor actor, String guestPasswordOrNull) {
+		RecruitPost post = postRepository.findByIdAndDeletedAtIsNull(postId)
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+
+		String guestPw = resolveGuestPassword(post, req, guestPasswordOrNull);
+
+		boolean isGuestAuthor = post.getAuthorType() == RecruitAuthorType.GUEST;
+		boolean isFirstPublishFromDraft = post.getStatus() == RecruitPostStatus.DRAFT;
+
+		if (isGuestAuthor && actor.isGuest() && isFirstPublishFromDraft) {
+			if (!Boolean.TRUE.equals(req.getSecret())) {
+				throw new IllegalStateException("외부 작성 글은 비밀글로만 작성할 수 있습니다.");
+			}
+			post.setSecret(true);
+			post.setSecretPasswordHash(passwordEncoder.encode(requirePassword(guestPw)));
+		} else {
+			validateUpdateDeletePermission(post, actor, guestPw);
+			applySecretPolicy(post, req);
+		}
+
+		post.setTitle(requireTitle(req.getTitle()));
+
+		if (post.getBoardCode() == RecruitBoardCode.NOTICE) {
+			post.setCommentEnabled(false);
+		}
+
+		List<RecruitBlockRequest> blocks = (req.getBlocks() == null) ? List.of() : req.getBlocks();
+		validateBlocksForPublish(blocks);
+
+		blockRepository.deleteByPostId(postId);
+		saveBlocks(postId, blocks);
+
+		post.setStatus(RecruitPostStatus.PUBLISHED);
+
+		return get(postId, actor, req.getPassword());
+	}
+
+
+
+	@Transactional
+	public RecruitPostResponse create(RecruitBoardCode boardCode, RecruitPostUpsertRequest req, Actor actor) {
+		RecruitPostResponse draft = createDraft(boardCode, req.getTitle(), actor);
+		return publish(draft.getId(), req, actor, req.getPassword());
+	}
+
 
 	@Transactional
 	public RecruitPostResponse get(Long postId, Actor actor, String passwordOrNull) {
-		postRepository.incrementViewCount(postId);
-
 		RecruitPost post = postRepository.findByIdAndDeletedAtIsNull(postId)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+
+		if (post.getStatus() == RecruitPostStatus.DRAFT) {
+			if (!canReadDraft(post, actor)) {
+				throw new IllegalArgumentException("존재하지 않는 게시글입니다.");
+			}
+		} else {
+			postRepository.incrementViewCount(postId);
+		}
 
 		boolean locked = isLockedForRead(post, actor, passwordOrNull);
 
@@ -96,51 +128,48 @@ public class RecruitService {
 			: blockRepository.findByPostIdOrderBySortOrderAsc(postId)
 			.stream().map(RecruitBlockResponse::from).toList();
 
-		return RecruitPostResponse.from(post, blocks, locked);
+		String displayAuthor = resolveDisplayAuthorName(post);
+
+		return RecruitPostResponse.from(post, blocks, locked, displayAuthor);
 	}
 
 	@Transactional
 	public Page<RecruitPostResponse> list(RecruitBoardCode boardCode, Pageable pageable) {
 		Page<RecruitPost> page = postRepository
-			.findByBoardCodeAndDeletedAtIsNullOrderByPinnedDescPinnedAtDescCreatedAtDesc(boardCode, pageable);
+			.findByBoardCodeAndStatusAndDeletedAtIsNullOrderByPinnedDescPinnedAtDescCreatedAtDesc(
+				boardCode,
+				RecruitPostStatus.PUBLISHED,
+				pageable
+			);
 
-		return page.map(p -> RecruitPostResponse.from(p, List.of(), false));
+		return page.map(p -> {
+			String displayAuthor = resolveDisplayAuthorName(p);
+			return RecruitPostResponse.from(p, List.of(), false, displayAuthor);
+		});
 	}
+
 
 	@Transactional
 	public RecruitPostResponse update(Long postId, RecruitPostUpsertRequest req, Actor actor, String guestPasswordOrNull) {
 		RecruitPost post = postRepository.findByIdAndDeletedAtIsNull(postId)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
 
-		String guestPw = guestPasswordOrNull;
-		if ((guestPw == null || guestPw.isBlank()) && post.getAuthorType() == RecruitAuthorType.GUEST) {
-			guestPw = req.getPassword();
-		}
-
+		String guestPw = resolveGuestPassword(post, req, guestPasswordOrNull);
 		validateUpdateDeletePermission(post, actor, guestPw);
 
-		post.setTitle(req.getTitle());
+		post.setTitle(requireTitle(req.getTitle()));
 
-		boolean nextSecret = Boolean.TRUE.equals(req.getSecret());
-		post.setSecret(nextSecret);
+		applySecretPolicy(post, req);
 
-
-		if (!nextSecret) {
-			post.setSecretPasswordHash(null);
-		} else {
-			if (post.getAuthorType() == RecruitAuthorType.GUEST) {
-				post.setSecretPasswordHash(passwordEncoder.encode(requirePassword(req.getPassword())));
-			} else {
-				if (req.getPassword() != null && !req.getPassword().isBlank()) {
-					post.setSecretPasswordHash(passwordEncoder.encode(req.getPassword().trim()));
-				} else {
-					post.setSecretPasswordHash(null);
-				}
-			}
+		if (post.getBoardCode() == RecruitBoardCode.NOTICE) {
+			post.setCommentEnabled(false);
 		}
 
+		List<RecruitBlockRequest> blocks = (req.getBlocks() == null) ? List.of() : req.getBlocks();
+		validateBlocksForPublish(blocks);
+
 		blockRepository.deleteByPostId(postId);
-		saveBlocks(postId, req.getBlocks() == null ? List.of() : req.getBlocks());
+		saveBlocks(postId, blocks);
 
 		return get(postId, actor, req.getPassword());
 	}
@@ -150,7 +179,8 @@ public class RecruitService {
 		RecruitPost post = postRepository.findByIdAndDeletedAtIsNull(postId)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
 
-		validateUpdateDeletePermission(post, actor, guestPasswordOrNull);
+		String guestPw = guestPasswordOrNull;
+		validateUpdateDeletePermission(post, actor, guestPw);
 
 		post.setDeletedAt(LocalDateTime.now());
 	}
@@ -172,6 +202,7 @@ public class RecruitService {
 		post.setPinned(pinned);
 		post.setPinnedAt(pinned ? LocalDateTime.now() : null);
 	}
+
 
 	private void validateCreatePermission(RecruitBoardCode boardCode, Actor actor) {
 		if (boardCode == RecruitBoardCode.QA) return;
@@ -204,23 +235,35 @@ public class RecruitService {
 		}
 	}
 
+	private boolean canReadDraft(RecruitPost post, Actor actor) {
+		if (!actor.isGuest() &&
+			(actor.role() == MemberRole.ROLE_SUPER_ADMIN || actor.role() == MemberRole.ROLE_PRESIDENT)) {
+			return true;
+		}
+
+		if (post.getAuthorType() == RecruitAuthorType.MEMBER
+			&& !actor.isGuest()
+			&& Objects.equals(post.getAuthorMemberId(), actor.memberId())) {
+			return true;
+		}
+
+		return false;
+	}
+
 	private boolean isLockedForRead(RecruitPost post, Actor actor, String passwordOrNull) {
 		if (!post.isSecret()) return false;
 
-		// 운영진은 항상 열람 가능
 		if (!actor.isGuest() &&
 			(actor.role() == MemberRole.ROLE_SUPER_ADMIN || actor.role() == MemberRole.ROLE_PRESIDENT)) {
 			return false;
 		}
 
-		// 로그인 작성자 본인은 열람 가능
 		if (post.getAuthorType() == RecruitAuthorType.MEMBER
 			&& !actor.isGuest()
 			&& Objects.equals(post.getAuthorMemberId(), actor.memberId())) {
 			return false;
 		}
 
-		// 게스트 글은 비번으로 열람
 		if (post.getAuthorType() == RecruitAuthorType.GUEST) {
 			if (passwordOrNull == null || passwordOrNull.isBlank()) return true;
 			String hash = post.getSecretPasswordHash();
@@ -228,16 +271,21 @@ public class RecruitService {
 			return !passwordEncoder.matches(passwordOrNull, hash);
 		}
 
-		// MEMBER 비밀글인데 작성자/운영진이 아니면 잠금
 		return true;
+	}
+
+
+	private void validateBlocksForPublish(List<RecruitBlockRequest> blocks) {
+		if (blocks == null || blocks.isEmpty()) return;
+		for (RecruitBlockRequest b : blocks) {
+			validateBlockForPublish(b);
+		}
 	}
 
 	private void saveBlocks(Long postId, List<RecruitBlockRequest> blocks) {
 		if (blocks == null || blocks.isEmpty()) return;
 
 		for (RecruitBlockRequest b : blocks) {
-			validateBlock(b);
-
 			RecruitPostBlock entity = RecruitPostBlock.builder()
 				.postId(postId)
 				.sortOrder(b.getSortOrder())
@@ -251,7 +299,7 @@ public class RecruitService {
 		}
 	}
 
-	private void validateBlock(RecruitBlockRequest b) {
+	private void validateBlockForPublish(RecruitBlockRequest b) {
 		if (b.getType() == null) throw new IllegalArgumentException("block type이 필요합니다.");
 
 		if (b.getType() == RecruitBlockType.TEXT) {
@@ -265,14 +313,77 @@ public class RecruitService {
 		}
 	}
 
+
+	private void applySecretPolicy(RecruitPost post, RecruitPostUpsertRequest req) {
+		boolean nextSecret = Boolean.TRUE.equals(req.getSecret());
+		post.setSecret(nextSecret);
+
+		if (!nextSecret) {
+			post.setSecretPasswordHash(null);
+			return;
+		}
+
+		if (post.getAuthorType() == RecruitAuthorType.GUEST) {
+			post.setSecretPasswordHash(passwordEncoder.encode(requirePassword(req.getPassword())));
+			return;
+		}
+
+		if (req.getPassword() != null && !req.getPassword().isBlank()) {
+			post.setSecretPasswordHash(passwordEncoder.encode(req.getPassword().trim()));
+		} else {
+			post.setSecretPasswordHash(null);
+		}
+	}
+
+	private String resolveGuestPassword(RecruitPost post, RecruitPostUpsertRequest req, String guestPasswordOrNull) {
+		String guestPw = guestPasswordOrNull;
+		if ((guestPw == null || guestPw.isBlank()) && post.getAuthorType() == RecruitAuthorType.GUEST) {
+			guestPw = req.getPassword();
+		}
+		return guestPw;
+	}
+
 	private String requirePassword(String pw) {
 		if (pw == null || pw.isBlank()) throw new IllegalArgumentException("비밀번호가 필요합니다.");
 		return pw;
 	}
 
+	private String requireTitle(String title) {
+		if (title == null || title.isBlank()) throw new IllegalArgumentException("제목이 필요합니다.");
+		return title.trim();
+	}
+
+	@SuppressWarnings("unused")
 	private String requireGuestName(String name) {
 		if (name == null || name.isBlank()) throw new IllegalArgumentException("작성자 이름이 필요합니다.");
 		return name;
+	}
+
+	private String resolveDisplayAuthorName(RecruitPost post) {
+		if (post.getAuthorType() == RecruitAuthorType.GUEST) {
+			return post.getAuthorName();
+		}
+
+		Long memberId = post.getAuthorMemberId();
+		if (memberId == null) return post.getAuthorName();
+
+		return memberRepository.findById(memberId)
+			.map(this::formatMemberDisplayName)
+			.orElse(post.getAuthorName());
+	}
+
+	private String formatMemberDisplayName(Member m) {
+		String name = safe(m.getName());
+		String department = safe(m.getDepartment());
+
+		String gen = (m.getGeneration() <= 0) ? " " : (m.getGeneration() + "기");
+
+		String result = String.format("%s %s %s", gen, department, name).trim();
+		return result.isBlank() ? "Member" : result;
+	}
+
+	private String safe(String v) {
+		return v == null ? "" : v.trim();
 	}
 
 	public record Actor(Long memberId, String displayName, MemberRole role) {

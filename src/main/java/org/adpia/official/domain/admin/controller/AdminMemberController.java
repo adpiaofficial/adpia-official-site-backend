@@ -26,7 +26,6 @@ public class AdminMemberController {
 		return ResponseEntity.ok(adminMemberService.getMembers());
 	}
 
-	// 회장단, 활동기수, OB같은 표면적 지위 수정
 	@PatchMapping("/{id}/grade")
 	@PreAuthorize("hasRole('SUPER_ADMIN')")
 	public ResponseEntity<MemberResponse> updateMemberGrade(

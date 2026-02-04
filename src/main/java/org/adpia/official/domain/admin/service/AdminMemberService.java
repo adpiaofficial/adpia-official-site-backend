@@ -25,9 +25,6 @@ public class AdminMemberService {
 			.toList();
 	}
 
-	/**
-	 * 한글 grade -> MemberRole 매핑
-	 */
 	private MemberRole resolveRoleFromGrade(String grade) {
 		if (grade == null) {
 			return MemberRole.ROLE_USER;
