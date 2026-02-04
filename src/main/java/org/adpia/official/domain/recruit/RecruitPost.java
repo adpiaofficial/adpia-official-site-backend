@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 	name = "recruit_posts",
 	indexes = {
 		@Index(name = "idx_recruit_posts_board_created", columnList = "board_code, created_at"),
-		@Index(name = "idx_recruit_posts_board_pinned", columnList = "board_code, pinned, pinned_at")
+		@Index(name = "idx_recruit_posts_board_pinned", columnList = "board_code, pinned, pinned_at"),
+		@Index(name = "idx_recruit_posts_board_status_created", columnList = "board_code, status, created_at")
 	}
 )
 @Getter @Setter
@@ -24,6 +25,11 @@ public class RecruitPost {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "board_code", nullable = false, length = 30)
 	private RecruitBoardCode boardCode;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status", nullable = false, length = 20)
+	@Builder.Default
+	private RecruitPostStatus status = RecruitPostStatus.PUBLISHED;
 
 	@Column(nullable = false, length = 200)
 	private String title;

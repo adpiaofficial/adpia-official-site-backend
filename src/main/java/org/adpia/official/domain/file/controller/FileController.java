@@ -1,12 +1,11 @@
 package org.adpia.official.domain.file.controller;
 
 import org.adpia.official.domain.file.service.PresignedUrlService;
+import org.adpia.official.dto.file.DownloadPresignRequest;
+import org.adpia.official.dto.file.DownloadPresignResponse;
 import org.adpia.official.dto.file.PresignRequest;
 import org.adpia.official.dto.file.PresignResponse;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,5 +23,11 @@ public class FileController {
 			req.boardCode(), req.postId(), req.contentType(), req.originalFilename()
 		);
 		return new PresignResponse(result.putUrl(), result.key(), result.fileUrl());
+	}
+
+	@PostMapping("/download-presign")
+	public DownloadPresignResponse downloadPresign(@Valid @RequestBody DownloadPresignRequest req) {
+		var result = presignedUrlService.createGetUrl(req.key(), req.contentType(), req.originalFilename());
+		return new DownloadPresignResponse(result.url());
 	}
 }

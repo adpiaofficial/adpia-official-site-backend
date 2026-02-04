@@ -8,20 +8,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 @Component
-public final class ActorResolver {
-
-	private ActorResolver() {}
+public class ActorResolver {
 
 	public RecruitService.Actor resolveOrGuest() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-		if (auth == null || !auth.isAuthenticated()
-			|| auth.getPrincipal() == null
-			|| "anonymousUser".equals(auth.getPrincipal())) {
+		if (auth == null || !auth.isAuthenticated() || auth.getPrincipal() == null) {
 			return RecruitService.Actor.guest();
 		}
 
 		Object principalObj = auth.getPrincipal();
+		if ("anonymousUser".equals(principalObj)) {
+			return RecruitService.Actor.guest();
+		}
 
 		if (!(principalObj instanceof MemberPrincipal principal)) {
 			return RecruitService.Actor.guest();
@@ -29,14 +28,23 @@ public final class ActorResolver {
 
 		MemberRole role = auth.getAuthorities().stream()
 			.map(GrantedAuthority::getAuthority)
-			.map(MemberRole::valueOf)
+			.map(this::safeRole)
+			.filter(r -> r != null)
 			.findFirst()
-			.orElseThrow(() -> new IllegalStateException("권한 정보가 없습니다."));
+			.orElse(MemberRole.ROLE_USER);
 
 		return new RecruitService.Actor(
 			principal.getId(),
 			principal.getUsername(),
 			role
 		);
+	}
+
+	private MemberRole safeRole(String authority) {
+		try {
+			return MemberRole.valueOf(authority);
+		} catch (Exception e) {
+			return null;
+		}
 	}
 }

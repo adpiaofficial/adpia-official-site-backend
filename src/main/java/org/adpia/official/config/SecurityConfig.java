@@ -40,30 +40,37 @@ public class SecurityConfig {
 			.cors(cors -> cors.configurationSource(corsConfig()))
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
-				.requestMatchers("/api/email/**", "/api/members/signup", "/api/members/login", "/health").permitAll()
+				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+				.requestMatchers("/health").permitAll()
+				.requestMatchers("/api/email/**").permitAll()
+				.requestMatchers("/api/members/signup").permitAll()
+				.requestMatchers("/api/members/login").permitAll()
+				.requestMatchers("/api/members/refresh").permitAll()
 
 				.requestMatchers(HttpMethod.GET, "/api/recruit/**").permitAll()
-
 				.requestMatchers(HttpMethod.POST, "/api/recruit/QA/**").permitAll()
-
 				.requestMatchers(HttpMethod.POST, "/api/recruit/NOTICE/**").authenticated()
 
 				.requestMatchers(HttpMethod.PATCH, "/api/recruit/posts/**").permitAll()
 				.requestMatchers(HttpMethod.DELETE, "/api/recruit/posts/**").permitAll()
-
 				.requestMatchers(HttpMethod.PATCH, "/api/recruit/posts/*/pin").authenticated()
 
 				.requestMatchers(HttpMethod.GET, "/api/recruit/posts/*/comments").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/recruit/posts/*/comments").permitAll()
 				.requestMatchers(HttpMethod.DELETE, "/api/recruit/comments/*").permitAll()
 
+				.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/recruit/posts/*/publish").permitAll()
+
+
+				.requestMatchers(HttpMethod.GET, "/api/link/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/files/presign").permitAll()
 
 				.requestMatchers("/api/posts/category/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
+
 				.anyRequest().authenticated()
 			)
-
 			.authenticationProvider(authenticationProvider())
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -91,7 +98,7 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfig() {
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOriginPatterns(List.of("*"));
+		config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);

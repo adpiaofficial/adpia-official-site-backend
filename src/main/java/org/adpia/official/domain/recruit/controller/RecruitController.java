@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.adpia.official.domain.recruit.RecruitBoardCode;
 import org.adpia.official.domain.recruit.service.RecruitService;
 import org.adpia.official.domain.recruit.service.RecruitService.Actor;
+import org.adpia.official.dto.recruit.RecruitDraftCreateRequest;
 import org.adpia.official.dto.recruit.RecruitPostPinRequest;
 import org.adpia.official.dto.recruit.RecruitPostResponse;
 import org.adpia.official.dto.recruit.RecruitPostUpsertRequest;
@@ -32,7 +33,6 @@ public class RecruitController {
 		return recruitService.list(boardCode, PageRequest.of(page, size));
 	}
 
-
 	@GetMapping("/posts/{id}")
 	public RecruitPostResponse get(
 		@PathVariable Long id,
@@ -42,6 +42,7 @@ public class RecruitController {
 		return recruitService.get(id, actor, password);
 	}
 
+	// (선택) 예전: 한번에 발행 작성
 	@PostMapping("/{boardCode}/posts")
 	public RecruitPostResponse create(
 		@PathVariable RecruitBoardCode boardCode,
@@ -79,5 +80,24 @@ public class RecruitController {
 		Actor actor = actorResolver.resolveOrGuest();
 		recruitService.updatePinned(id, req.getPinned(), actor);
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/{boardCode}/draft")
+	public RecruitPostResponse createDraft(
+		@PathVariable RecruitBoardCode boardCode,
+		@RequestBody RecruitDraftCreateRequest req
+	) {
+		Actor actor = actorResolver.resolveOrGuest();
+		return recruitService.createDraft(boardCode, req.getTitle(), actor);
+	}
+
+	@PostMapping("/posts/{id}/publish")
+	public RecruitPostResponse publish(
+		@PathVariable Long id,
+		@Valid @RequestBody RecruitPostUpsertRequest req,
+		@RequestParam(required = false) String password
+	) {
+		Actor actor = actorResolver.resolveOrGuest();
+		return recruitService.publish(id, req, actor, password);
 	}
 }

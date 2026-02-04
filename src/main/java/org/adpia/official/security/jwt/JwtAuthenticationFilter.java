@@ -26,11 +26,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final TokenBlacklistService tokenBlacklistService;
 
 	@Override
-	protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+	protected boolean shouldNotFilter(HttpServletRequest request) {
 		String path = request.getServletPath();
+
+		if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
+
 		return path.startsWith("/api/email/") ||
 			path.startsWith("/api/members/signup") ||
 			path.startsWith("/api/members/login") ||
+			path.startsWith("/api/members/refresh") ||
 			path.equals("/health");
 	}
 
@@ -77,9 +81,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private void writeUnauthorized(HttpServletResponse response, String code, String message) throws IOException {
 		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		response.setContentType("application/json;charset=UTF-8");
-		response.getWriter().write(
-			("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}")
-		);
+		response.getWriter().write("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}");
 	}
 
 	private String resolveToken(HttpServletRequest request) {
