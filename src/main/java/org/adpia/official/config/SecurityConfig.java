@@ -66,6 +66,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/link/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/files/presign").permitAll()
 
+				.requestMatchers(HttpMethod.GET, "/api/executives/**").permitAll()
+
 				.requestMatchers("/api/posts/category/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
 

@@ -23,7 +23,11 @@ public class MemberPrincipal implements UserDetails {
 		this.email = member.getEmail();
 		this.password = member.getPassword();
 		this.active = Boolean.TRUE.equals(member.getActive());
-		this.authorities = List.of(new SimpleGrantedAuthority(member.getRole().name()));
+
+		String raw = (member.getRole() == null) ? "" : member.getRole().toString();
+		String authority = raw.startsWith("ROLE_") ? raw : "ROLE_" + raw;
+
+		this.authorities = List.of(new SimpleGrantedAuthority(authority));
 	}
 
 	@Override

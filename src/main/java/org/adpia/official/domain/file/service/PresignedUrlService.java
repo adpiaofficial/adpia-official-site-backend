@@ -115,9 +115,18 @@
 					: "files";
 
 			String date = LocalDate.now().toString().replace("-", "");
-			String postPart = (postId == null) ? "temp" : String.valueOf(postId);
+			String postPart = (postId == null || postId <= 0) ? "temp" : String.valueOf(postId);
 
-			return "recruit/" + boardCode + "/" + date + "/" + postPart + "/" + typeFolder + "/" + UUID.randomUUID() + ext;
+			String prefix = "recruit";
+			if ("EXECUTIVES".equalsIgnoreCase(boardCode)) {
+				prefix = "executives";
+			}
+
+			if ("executives".equals(prefix)) {
+				return prefix + "/" + date + "/" + typeFolder + "/" + UUID.randomUUID() + ext;
+			}
+
+			return prefix + "/" + boardCode + "/" + date + "/" + postPart + "/" + typeFolder + "/" + UUID.randomUUID() + ext;
 		}
 
 		private String buildPublicUrl(String key) {
