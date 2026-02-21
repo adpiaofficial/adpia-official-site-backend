@@ -32,7 +32,7 @@ public class RecruitComment {
 	@Column(name="author_name", nullable=false)
 	private String authorName;
 
-	@Column(nullable=false)
+	@Column(nullable = false, columnDefinition = "TEXT")
 	private String content;
 
 	@Column(name="password_hash")
