@@ -72,6 +72,8 @@ public class SecurityConfig {
 
 				.requestMatchers(HttpMethod.GET, "/api/history/**").permitAll()
 
+				.requestMatchers(HttpMethod.GET, "/api/bylaw/**").permitAll()
+
 				.requestMatchers("/api/posts/category/**").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
 
