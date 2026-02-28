@@ -52,6 +52,11 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/recruit/QA/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/recruit/NOTICE/**").authenticated()
 
+				.requestMatchers(HttpMethod.GET, "/api/news/**").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/news/**").hasAnyRole("SUPER_ADMIN", "PRESIDENT")
+				.requestMatchers(HttpMethod.PATCH, "/api/news/**").hasAnyRole("SUPER_ADMIN", "PRESIDENT")
+				.requestMatchers(HttpMethod.DELETE, "/api/news/**").hasAnyRole("SUPER_ADMIN", "PRESIDENT")
+
 				.requestMatchers(HttpMethod.PATCH, "/api/recruit/posts/**").permitAll()
 				.requestMatchers(HttpMethod.DELETE, "/api/recruit/posts/**").permitAll()
 				.requestMatchers(HttpMethod.PATCH, "/api/recruit/posts/*/pin").authenticated()
