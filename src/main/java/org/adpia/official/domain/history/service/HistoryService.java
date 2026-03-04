@@ -61,6 +61,13 @@ public class HistoryService {
 		return historyRepository.findDistinctDecades();
 	}
 
+	@Transactional
+	public void delete(Long id) {
+		History h = historyRepository.findById(id)
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 연혁입니다."));
+		historyRepository.delete(h);
+	}
+
 	private static int normalizeDecadeStart(int decade) {
 		if (decade % 10 != 0) throw new IllegalArgumentException("decade는 10의 배수여야 합니다. 예) 2020");
 		if (decade < 1990 || decade > 2100) throw new IllegalArgumentException("decade 범위가 올바르지 않습니다.");
