@@ -10,7 +10,6 @@ public interface HistoryRepository extends JpaRepository<History, Long> {
 
 	List<History> findByYearBetweenOrderByYearDescMonthAscSortOrderAsc(int startYear, int endYear);
 
-	@Query("select distinct (h.year / 10) * 10 from History h order by (h.year / 10) * 10 asc")
+	@Query("select distinct (h.year / 10) * 10 from History h order by (h.year / 10) * 10 desc")
 	List<Integer> findDistinctDecades();
-
 }

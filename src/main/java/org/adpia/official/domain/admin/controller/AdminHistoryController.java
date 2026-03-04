@@ -10,6 +10,7 @@ import org.adpia.official.domain.history.service.HistoryService;
 import org.adpia.official.dto.history.HistoryCreateRequest;
 import org.adpia.official.dto.history.HistoryResponse;
 import org.adpia.official.dto.history.HistoryUpdateRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -36,6 +37,12 @@ public class AdminHistoryController {
 		@Valid @RequestBody HistoryUpdateRequest req
 	) {
 		return historyService.update(id, req);
+	}
+
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@PathVariable Long id) {
+		historyService.delete(id);
 	}
 
 
