@@ -27,6 +27,8 @@ public class RecruitPostResponse {
 	private boolean pinned;
 	private boolean commentEnabled;
 	private boolean likeEnabled;
+	private long likeCount;
+	private boolean likedByMe;
 	private int viewCount;
 
 	private LocalDateTime createdAt;
@@ -35,11 +37,11 @@ public class RecruitPostResponse {
 	private List<RecruitBlockResponse> blocks;
 
 	public static RecruitPostResponse from(RecruitPost post, List<RecruitBlockResponse> blocks) {
-		return from(post, blocks, false, post.getAuthorName());
+		return from(post, blocks, false, post.getAuthorName(), false);
 	}
 
 	public static RecruitPostResponse from(RecruitPost post, List<RecruitBlockResponse> blocks, boolean locked) {
-		return from(post, blocks, locked, post.getAuthorName());
+		return from(post, blocks, locked, post.getAuthorName(), false);
 	}
 
 	public static RecruitPostResponse from(
@@ -47,6 +49,16 @@ public class RecruitPostResponse {
 		List<RecruitBlockResponse> blocks,
 		boolean locked,
 		String displayAuthorName
+	) {
+		return from(post, blocks, locked, displayAuthorName, false);
+	}
+
+	public static RecruitPostResponse from(
+		RecruitPost post,
+		List<RecruitBlockResponse> blocks,
+		boolean locked,
+		String displayAuthorName,
+		boolean likedByMe
 	) {
 		return RecruitPostResponse.builder()
 			.id(post.getId())
@@ -60,6 +72,8 @@ public class RecruitPostResponse {
 			.pinned(post.isPinned())
 			.commentEnabled(post.isCommentEnabled())
 			.likeEnabled(post.isLikeEnabled())
+			.likeCount(post.getLikeCount())
+			.likedByMe(likedByMe)
 			.viewCount(post.getViewCount())
 			.createdAt(post.getCreatedAt())
 			.updatedAt(post.getUpdatedAt())
