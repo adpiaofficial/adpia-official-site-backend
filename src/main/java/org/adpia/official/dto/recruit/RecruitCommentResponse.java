@@ -4,12 +4,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.adpia.official.domain.recruit.RecruitAuthorType;
 import org.adpia.official.domain.recruit.RecruitComment;
 import lombok.*;
 
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class RecruitCommentResponse {
 	private Long id;
 	private Long postId;
@@ -20,6 +22,8 @@ public class RecruitCommentResponse {
 	private String authorName;
 
 	private String content;
+	private long likeCount;
+	private boolean likedByMe;
 	private boolean deleted;
 
 	private LocalDateTime createdAt;
@@ -28,7 +32,7 @@ public class RecruitCommentResponse {
 	@Builder.Default
 	private List<RecruitCommentResponse> children = new ArrayList<>();
 
-	public static RecruitCommentResponse from(RecruitComment c) {
+	public static RecruitCommentResponse from(RecruitComment c, boolean likedByMe) {
 		return RecruitCommentResponse.builder()
 			.id(c.getId())
 			.postId(c.getPostId())
@@ -36,10 +40,16 @@ public class RecruitCommentResponse {
 			.authorType(c.getAuthorType().name())
 			.authorMemberId(c.getAuthorMemberId())
 			.authorName(c.getAuthorName())
+			.likeCount(c.getLikeCount())
+			.likedByMe(likedByMe)
 			.content(c.isDeleted() ? "삭제된 댓글입니다." : c.getContent())
 			.deleted(c.isDeleted())
 			.createdAt(c.getCreatedAt())
 			.updatedAt(c.getUpdatedAt())
 			.build();
+	}
+
+	public static RecruitCommentResponse from(RecruitComment c) {
+		return from(c, false);
 	}
 }

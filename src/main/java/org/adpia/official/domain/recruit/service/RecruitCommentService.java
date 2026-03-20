@@ -1,10 +1,17 @@
 package org.adpia.official.domain.recruit.service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import org.adpia.official.domain.member.MemberRole;
-import org.adpia.official.domain.recruit.*;
+import org.adpia.official.domain.recruit.RecruitAuthorType;
+import org.adpia.official.domain.recruit.RecruitComment;
+import org.adpia.official.domain.recruit.RecruitPost;
+import org.adpia.official.domain.recruit.repository.RecruitCommentLikeRepository;
 import org.adpia.official.domain.recruit.repository.RecruitCommentRepository;
 import org.adpia.official.domain.recruit.repository.RecruitPostRepository;
 import org.adpia.official.dto.recruit.RecruitCommentCreateRequest;
@@ -21,6 +28,7 @@ public class RecruitCommentService {
 
 	private final RecruitPostRepository postRepository;
 	private final RecruitCommentRepository commentRepository;
+	private final RecruitCommentLikeRepository commentLikeRepository;
 	private final PasswordHasher passwordHasher;
 
 	private boolean isAdmin(RecruitService.Actor actor) {
@@ -30,7 +38,7 @@ public class RecruitCommentService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<RecruitCommentResponse> list(Long postId) {
+	public List<RecruitCommentResponse> list(Long postId, RecruitService.Actor actor) {
 		postRepository.findByIdAndDeletedAtIsNull(postId)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
 
@@ -40,7 +48,12 @@ public class RecruitCommentService {
 		List<RecruitCommentResponse> roots = new ArrayList<>();
 
 		for (RecruitComment c : all) {
-			RecruitCommentResponse dto = RecruitCommentResponse.from(c);
+			boolean likedByMe = false;
+			if (!actor.isGuest()) {
+				likedByMe = commentLikeRepository.existsByCommentIdAndMemberId(c.getId(), actor.memberId());
+			}
+
+			RecruitCommentResponse dto = RecruitCommentResponse.from(c, likedByMe);
 			map.put(dto.getId(), dto);
 		}
 
@@ -75,9 +88,6 @@ public class RecruitCommentService {
 			if (!Objects.equals(parent.getPostId(), postId)) {
 				throw new IllegalStateException("잘못된 parentId 입니다.");
 			}
-			if (parent.getParentId() != null) {
-				throw new IllegalStateException("대댓글에는 대댓글을 달 수 없습니다.");
-			}
 		}
 
 		boolean isGuest = actor.isGuest();
@@ -104,7 +114,7 @@ public class RecruitCommentService {
 			.build();
 
 		commentRepository.save(comment);
-		return RecruitCommentResponse.from(comment);
+		return RecruitCommentResponse.from(comment, false);
 	}
 
 	@Transactional
@@ -119,7 +129,6 @@ public class RecruitCommentService {
 		}
 
 		if (!actor.isGuest()) {
-			// 로그인 작성자 본인만
 			if (c.getAuthorType() == RecruitAuthorType.MEMBER &&
 				Objects.equals(c.getAuthorMemberId(), actor.memberId())) {
 				c.setDeleted(true);

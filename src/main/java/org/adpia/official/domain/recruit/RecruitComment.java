@@ -38,6 +38,9 @@ public class RecruitComment {
 	@Column(name="password_hash")
 	private String passwordHash;
 
+	@Column(name = "like_count", nullable = false)
+	private long likeCount = 0;
+
 	@Column(nullable=false)
 	private boolean deleted;
 

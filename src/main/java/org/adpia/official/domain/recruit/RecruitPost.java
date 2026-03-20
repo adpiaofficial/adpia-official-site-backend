@@ -67,6 +67,9 @@ public class RecruitPost {
 	@Builder.Default
 	private boolean likeEnabled = true;
 
+	@Column(name = "like_count", nullable = false)
+	private long likeCount = 0;
+
 	@Column(name = "view_count", nullable = false)
 	@Builder.Default
 	private int viewCount = 0;
