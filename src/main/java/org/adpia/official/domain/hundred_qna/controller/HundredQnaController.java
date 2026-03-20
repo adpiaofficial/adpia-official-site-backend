@@ -1,11 +1,15 @@
 package org.adpia.official.domain.hundred_qna.controller;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.adpia.official.domain.recruit.RecruitBoardCode;
 import org.adpia.official.domain.recruit.service.RecruitLikeService;
 import org.adpia.official.domain.recruit.service.RecruitService;
 import org.adpia.official.domain.recruit.service.RecruitService.Actor;
+import org.adpia.official.domain.recruit.service.RecruitStatsService;
+import org.adpia.official.dto.recruit.HundredQnaCommentStatResponse;
 import org.adpia.official.dto.recruit.RecruitPostPinRequest;
 import org.adpia.official.dto.recruit.RecruitPostResponse;
 import org.adpia.official.dto.recruit.RecruitPostUpsertRequest;
@@ -23,6 +27,7 @@ public class HundredQnaController {
 	private final RecruitService recruitService;
 	private final ActorResolver actorResolver;
 	private final RecruitLikeService recruitLikeService;
+	private final RecruitStatsService recruitStatsService;
 
 	@GetMapping("/posts")
 	public Page<RecruitPostResponse> list(
@@ -82,5 +87,11 @@ public class HundredQnaController {
 		Actor actor = actorResolver.resolveOrGuest();
 		recruitLikeService.unlikePost(id, actor);
 		return ResponseEntity.noContent().build();
+	}
+
+	@GetMapping("/comment-stats")
+	public List<HundredQnaCommentStatResponse> getCommentStats() {
+		Actor actor = actorResolver.resolveOrGuest();
+		return recruitStatsService.getHundredQnaCommentStats(actor);
 	}
 }
