@@ -21,4 +21,8 @@ public enum RecruitBoardCode {
 	public boolean canGuestCreate() {
 		return this == QA;
 	}
+
+	public boolean isAdminWriteOnly() {
+		return this == NOTICE || this == NEWS;
+	}
 }
