@@ -206,8 +206,11 @@ public class RecruitService {
 		if (actor.isGuest()) {
 			throw new IllegalStateException("해당 게시판은 로그인 후 작성할 수 있습니다.");
 		}
-		if (!(actor.role() == MemberRole.ROLE_SUPER_ADMIN || actor.role() == MemberRole.ROLE_PRESIDENT)) {
-			throw new IllegalStateException("해당 게시판 작성 권한이 없습니다.");
+
+		if (boardCode.isAdminWriteOnly()) {
+			if (!(actor.role() == MemberRole.ROLE_SUPER_ADMIN || actor.role() == MemberRole.ROLE_PRESIDENT)) {
+				throw new IllegalStateException("해당 게시판 작성 권한이 없습니다.");
+			}
 		}
 	}
 
